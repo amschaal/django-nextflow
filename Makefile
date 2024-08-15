@@ -13,11 +13,11 @@ unexport PYTHONHOME
 
 # install versions of conda for Mac or Linux
 ifeq ($(UNAME), Darwin)
-CONDASH:=Miniconda3-4.5.4-MacOSX-x86_64.sh
+CONDASH:=Miniconda3-latest-MacOSX-x86_64.sh
 endif
 
 ifeq ($(UNAME), Linux)
-CONDASH:=Miniconda3-4.5.4-Linux-x86_64.sh
+CONDASH:=Miniconda3-latest-Linux-x86_64.sh
 endif
 
 CONDAURL:=https://repo.continuum.io/miniconda/$(CONDASH)
@@ -34,15 +34,14 @@ conda:
 conda-install: conda
 	conda install -y conda-forge::ncurses && \
 	conda install -y -c anaconda -c bioconda \
-	python=3.7 \
-	django=2.1.5 \
-	nextflow=19.01.0 \
-	rabbitmq-server=3.7.13 && \
+	nextflow \
+	rabbitmq-server
 	pip install \
-	celery==4.3.0 \
-	django-celery-results==1.0.4 \
-	django-celery-beat==1.4.0 \
-	flower==0.9.3
+	django \
+	celery \
+	django-celery-results \
+	django-celery-beat \
+	flower
 
 # celery=4.2.1 \ # not compatible with py3.7...
 test1:
@@ -64,15 +63,15 @@ init:
 	python manage.py migrate
 	python manage.py migrate django_celery_results
 	python manage.py migrate dashboard --database=dashboard_db
-	python manage.py createsuperuser
+#	python manage.py createsuperuser
 
 # run the Django dev server
 runserver:
-	python manage.py runserver
+	python manage.py runserver 0.0.0.0:9999
 runserver-all: celery-start rabbitmq-start
 	finish () { "$(MAKE)" celery-stop rabbitmq-stop ; sleep 5 ; } ; \
 	trap finish EXIT ; \
-	python manage.py runserver
+	python manage.py runserver 0.0.0.0:9999
 
 stopserver: celery-stop rabbitmq-stop
 
@@ -119,8 +118,8 @@ FLOWER_LOGFILE:=$(LOG_DIR_ABS)/celery.flower.log
 FLOWER_PID_FILE:=$(LOG_DIR_ABS)/celery.flower.pid
 # start 1 concurrent worker for Nextflow and 2 for all other tasks
 celery-start:
-	celery worker --app dashboard --loglevel info --pidfile "$(CELERY_DEFAULT_PID_FILE)" --logfile "$(CELERY_DEFAULT_LOGFILE)" --queues=default --concurrency=2 --hostname=default@%h --detach
-	celery worker --app dashboard --loglevel info --pidfile "$(CELERY_NEXTFLOW_PID_FILE)" --logfile "$(CELERY_NEXTFLOW_LOGFILE)" --queues=run_nextflow --concurrency=1 --hostname=nextflow@%h --detach
+	celery  --app dashboard worker --loglevel info --pidfile "$(CELERY_DEFAULT_PID_FILE)" --logfile "$(CELERY_DEFAULT_LOGFILE)" --queues=default --concurrency=2 --hostname=default@%h --detach
+	celery --app dashboard worker --loglevel info --pidfile "$(CELERY_NEXTFLOW_PID_FILE)" --logfile "$(CELERY_NEXTFLOW_LOGFILE)" --queues=run_nextflow --concurrency=1 --hostname=nextflow@%h --detach
 # celery flower --app dashboard --logfile "$(FLOWER_LOGFILE)" --pidfile "$(FLOWER_PID_FILE)" --broker="$(CELERY_BROKER_URL)" --address="$(FLOWER_ADDRESS)" --port="$(FLOWER_PORT)" --detach # access at http://127.0.0.1:5555/
 
 # interactive for debugging
